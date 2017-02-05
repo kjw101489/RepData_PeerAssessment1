@@ -1,10 +1,8 @@
 ---
-title: "Reproducible Research - Course Project 1"
+title: "PA1_Template"
 author: "Luis Cerdeño Mota""
 date: "February, 2017"
-output: 
-  html_document:
-    keep_md: true
+output: md_document
 ---
 
 
