@@ -1,25 +1,145 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
+title: "Reproducible Research - Course Project 1"
+author: "Luis Cerdeño Mota""
+date: "February, 2017"
 output: 
   html_document:
     keep_md: true
 ---
 
 
-## Loading and preprocessing the data
+###Introduction
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the “quantified self” movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
 
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+## Data
+The data for this assignment was downloaded from the course web
+site:
+
+* Dataset: [Activity monitoring data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip) [52K]
+
+The variables included in this dataset are:
+
+* **steps**: Number of steps taking in a 5-minute interval (missing
+    values are coded as `NA`)
+
+* **date**: The date on which the measurement was taken in YYYY-MM-DD
+    format
+
+* **interval**: Identifier for the 5-minute interval in which
+    measurement was taken
+
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
+
+## Loading and preprocessing the data
+Download, unzip and load data into data frame `data`. 
+```{r}
+if(!file.exists("data.zip")) {
+        temp <- tempfile()
+        download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip",temp)
+        unzip(temp)
+        unlink(temp)
+}
+
+datos <- read.csv("activity.csv")
+```
 
 
 ## What is mean total number of steps taken per day?
+For this part of the assignment, we can ignore the missing values in the dataset.
 
+We sum steps by day, create Histogram, and calculate mean and median.
+```{r} 
+stepsEachDay <- aggregate(steps ~ date, datos, sum)
+hist(stepsEachDay$steps, main = paste("Steps Each Day"), col="blue", xlab="Steps")
+```
 
+![plot of chunk graf1](./figures/graf1.png)
+
+```{r} 
+rmean <- mean(stepsEachDay$steps)
+rmedian <- median(stepsEachDay$steps)
+```
 
 ## What is the average daily activity pattern?
+* We calculate average steps for each interval for all days. 
+* Then, we plot the Average Number Steps per Day by Interval. 
+* Find interval with most average steps. 
+```{r}
+stepsEachInterval <- aggregate(steps ~ interval, datos, mean)
 
+plot(stepsEachInterval$interval,stepsEachInterval$steps, type="l", xlab="Interval", ylab="Steps",main="Average Steps per Day by Interval")
+```
 
+![plot of chunk graf2](./figures/graf2.png) 
 
-## Imputing missing values
+```{r}
+max_interval <- stepsEachInterval[which.max(stepsEachInterval$steps),1]
+```
 
+The 5-minute interval, on average across all the days in the data set, containing the maximum number of steps is `r max_interval` variable.
 
+## Impute missing values. Compare imputed to non-imputed data.
+Missing data needed to be imputed. Only a simple imputation approach was required for this assignment. 
+Missing values were imputed by inserting the average for each interval. Thus, if interval 10 was missing on 10-02-2012, the average for that interval for all days (0.1320755), replaced the NA.
+
+```{r}
+MissingValues <- sum(!complete.cases(datos))
+Newdatos <- transform(datos, steps = ifelse(is.na(datos$steps), stepsEachInterval$steps[match(datos$interval, stepsEachInterval$interval)], datos$steps))
+```
+
+Zeroes were imputed for 10-01-2012 because it was the first day and would have been over 9,000 steps higher than the following day, which had only 126 steps. NAs then were assumed to be zeros to fit the rising trend of the data. 
+```{r}
+Newdatos[as.character(Newdatos$date) == "2012-10-01", 1] <- 0
+```
+
+Recount total steps by day and create Histogram. 
+```{r}
+stepsEachDay_new <- aggregate(steps ~ date, Newdatos, sum)
+hist(stepsEachDay_new$steps, main = paste("Steps Each Day"), col="red", xlab="Steps")
+
+#Create Histogram to show difference. 
+hist(stepsEachDay$steps, main = paste("Total Steps Each Day"), col="red", xlab="Number of Steps", add=T)
+legend("topright", c("Imputed", "Non-imputed"), col=c("blue", "black"), lwd=10)
+```
+
+![plot of chunk graf3](./figures/graf3.png) 
+
+Calculate new mean and median for imputed data. 
+```{r}
+rmeanNew <- mean(stepsEachDay_new$steps)
+rmedianNew <- median(stepsEachDay_new$steps)
+```
+
+Calculate difference between imputed and non-imputed data.
+```{r}
+meanDifference <- rmeanNew - rmean
+medianDifference <- rmedianNew - rmedian
+```
+
+Calculate total difference.
+```{r}
+totalDifference <- sum(stepsEachDay_new$steps) - sum(stepsEachDay$steps)
+```
+* The imputed data mean is `r rmeanNew`
+* The imputed data median is `r rmedianNew`
+* The difference between the non-imputed mean and imputed mean is `r meanDifference`
+* The difference between the non-imputed mean and imputed mean is `r medianDifference`
+* The difference between total number of steps between imputed and non-imputed data is `r totalDifference`. Thus, there were `r totalDifference` more steps in the imputed data.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+Created a plot to compare and contrast number of steps between the week and weekend. There is a higher peak earlier on weekdays, and more overall activity on weekends.  
+``` {r}
+days <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+Newdatos$dow = as.factor(ifelse(is.element(days(as.Date(Newdatos$date)),days), "Day", "Weekend"))
+
+stepsEachInterval_New <- aggregate(steps ~ interval + dow, Newdatos, mean)
+
+library(lattice)
+
+xyplot(stepsEachInterval_New$steps ~ stepsEachInterval_New$interval|stepsEachInterval_New$dow, main="Average Steps per Day by Interval",xlab="Interval", ylab="Steps",layout=c(1,2), type="l")
+
+```
+
+![plot of chunk graf4.png](./figures/graf4.png) 
